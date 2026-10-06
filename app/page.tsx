@@ -18,6 +18,7 @@ type Character = {
   work_title: string
   image_url: string | null
   description: string | null
+  sort_order: number
 }
 
 export default function Home() {
@@ -29,7 +30,12 @@ export default function Home() {
 
   const fetchData = async () => {
     const { data: actors } = await supabase.from('voice_actors').select('*')
-    const { data: chars } = await supabase.from('characters').select('*')
+    // sort_order 順にキャラクターを取得
+    const { data: chars } = await supabase
+      .from('characters')
+      .select('*')
+      .order('sort_order', { ascending: true })
+
     if (actors) setVoiceActors(actors)
     if (chars) setCharacters(chars)
   }
@@ -117,7 +123,6 @@ export default function Home() {
                   <div key={actor.id} className="border-b pb-6 last:border-b-0 last:pb-0">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-4">
-                        {/* 声優画像: object-containに変更し、背景を白・枠をつけて見切れないようにする */}
                         {actor.image_url ? (
                           <div className="w-12 h-12 rounded-full bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
                             <img src={actor.image_url} alt={actor.name} className="w-full h-full object-contain" />
@@ -140,14 +145,13 @@ export default function Home() {
                       </Link>
                     </div>
 
-                    {/* キャラクター一覧 */}
+                    {/* キャラクター一覧（保存された並び順で表示） */}
                     <div className="pl-16 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                       {actorChars.length === 0 ? (
                         <p className="text-xs text-gray-400">担当キャラクターはまだ登録されていません。</p>
                       ) : (
                         actorChars.map((char) => (
                           <div key={char.id} className="bg-gray-50 p-3 rounded-lg border flex items-center space-x-3">
-                            {/* キャラクター画像: object-containに変更 */}
                             {char.image_url ? (
                               <div className="w-10 h-10 rounded-md bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
                                 <img src={char.image_url} alt={char.name} className="w-full h-full object-contain" />

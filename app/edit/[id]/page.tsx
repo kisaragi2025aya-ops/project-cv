@@ -19,6 +19,7 @@ type Character = {
   work_title: string
   image_url: string | null
   description: string | null
+  sort_order: number
 }
 
 export default function EditActorPage() {
@@ -32,22 +33,19 @@ export default function EditActorPage() {
 
   const [characters, setCharacters] = useState<Character[]>([])
 
-  // 新規キャラクター追加用のステート
   const [newCharName, setNewCharName] = useState('')
   const [newCharWork, setNewCharWork] = useState('')
   const [newCharImage, setNewCharImage] = useState('')
-  const [newCharDesc, setNewCharDesc] = useState('')
 
-  // 編集中のキャラクターID（nullなら新規追加モード、IDがあれば編集モード）
   const [editingCharId, setEditingCharId] = useState<string | null>(null)
   const [editCharName, setEditCharName] = useState('')
   const [editCharWork, setEditCharWork] = useState('')
   const [editCharImage, setEditCharImage] = useState('')
-  const [editCharDesc, setEditCharDesc] = useState('')
 
-  // データの取得
+  // ドラッグ＆ドロップ用の状態管理
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+
   const fetchData = async () => {
-    // 声優データの取得
     const { data: actorData, error: actorError } = await supabase
       .from('voice_actors')
       .select('*')
@@ -64,11 +62,11 @@ export default function EditActorPage() {
     setActorImage(actorData.image_url || '')
     setActorProfile(actorData.profile || '')
 
-    // 紐づくキャラクターデータの取得
     const { data: charData } = await supabase
       .from('characters')
       .select('*')
       .eq('voice_actor_id', actorId)
+      .order('sort_order', { ascending: true })
 
     if (charData) setCharacters(charData)
   }
@@ -77,7 +75,6 @@ export default function EditActorPage() {
     if (actorId) fetchData()
   }, [actorId])
 
-  // 声優情報の更新
   const handleUpdateActor = async (e: React.FormEvent) => {
     e.preventDefault()
     const { error } = await supabase
@@ -96,7 +93,6 @@ export default function EditActorPage() {
     }
   }
 
-  // 声優の削除（紐づくキャラも一緒に削除）
   const handleDeleteActor = async () => {
     if (!confirm('この声優と、紐づくキャラクターをすべて削除しますか？')) return
 
@@ -108,10 +104,11 @@ export default function EditActorPage() {
     }
   }
 
-  // キャラクターの新規追加
   const handleAddCharacter = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newCharName || !newCharWork) return
+
+    const nextOrder = characters.length > 0 ? Math.max(...characters.map(c => c.sort_order)) + 1 : 0
 
     const { error } = await supabase.from('characters').insert([
       {
@@ -119,7 +116,7 @@ export default function EditActorPage() {
         name: newCharName,
         work_title: newCharWork,
         image_url: newCharImage,
-        description: newCharDesc,
+        sort_order: nextOrder,
       },
     ])
 
@@ -129,21 +126,17 @@ export default function EditActorPage() {
       setNewCharName('')
       setNewCharWork('')
       setNewCharImage('')
-      setNewCharDesc('')
       fetchData()
     }
   }
 
-  // キャラクター編集モードに入る
   const startEditCharacter = (char: Character) => {
     setEditingCharId(char.id)
     setEditCharName(char.name)
     setEditCharWork(char.work_title)
     setEditCharImage(char.image_url || '')
-    setEditCharDesc(char.description || '')
   }
 
-  // キャラクターの更新保存
   const handleUpdateCharacter = async (charId: string) => {
     const { error } = await supabase
       .from('characters')
@@ -151,7 +144,6 @@ export default function EditActorPage() {
         name: editCharName,
         work_title: editCharWork,
         image_url: editCharImage,
-        description: editCharDesc,
       })
       .eq('id', charId)
 
@@ -163,7 +155,6 @@ export default function EditActorPage() {
     }
   }
 
-  // キャラクターの削除
   const handleDeleteCharacter = async (charId: string) => {
     if (!confirm('このキャラクターを削除しますか？')) return
 
@@ -175,13 +166,41 @@ export default function EditActorPage() {
     }
   }
 
+  // ドラッグ＆ドロップのハンドラー
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = async (targetIndex: number) => {
+    if (draggedIndex === null || draggedIndex === targetIndex) return
+
+    const updated = [...characters]
+    const [movedItem] = updated.splice(draggedIndex, 1)
+    updated.splice(targetIndex, 0, movedItem)
+
+    setCharacters(updated)
+    setDraggedIndex(null)
+
+    // データベースの sort_order を新しい並び順で一括更新
+    for (let i = 0; i < updated.length; i++) {
+      await supabase
+        .from('characters')
+        .update({ sort_order: i })
+        .eq('id', updated[i].id)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 p-8 text-gray-800">
       <div className="max-w-4xl mx-auto space-y-8">
         <header className="flex items-center justify-between border-b pb-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">声優・キャラクター編集</h1>
-            <p className="text-sm text-gray-500 mt-1">情報の更新およびキャラクターの管理</p>
+            <p className="text-sm text-gray-500 mt-1">情報の更新およびキャラクターの管理・並び替え</p>
           </div>
           <Link
             href="/"
@@ -191,7 +210,7 @@ export default function EditActorPage() {
           </Link>
         </header>
 
-        {/* 声優情報の編集・削除セクション */}
+        {/* 声優情報 */}
         <section className="bg-white p-6 rounded-xl shadow-sm border space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">声優情報</h2>
@@ -210,7 +229,7 @@ export default function EditActorPage() {
                 type="text"
                 value={actorName}
                 onChange={(e) => setActorName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none"
                 required
               />
             </div>
@@ -220,7 +239,7 @@ export default function EditActorPage() {
                 type="url"
                 value={actorImage}
                 onChange={(e) => setActorImage(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none"
               />
             </div>
             <div>
@@ -229,7 +248,7 @@ export default function EditActorPage() {
                 value={actorProfile}
                 onChange={(e) => setActorProfile(e.target.value)}
                 rows={2}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none"
               />
             </div>
             <button
@@ -241,20 +260,28 @@ export default function EditActorPage() {
           </form>
         </section>
 
-        {/* 紐づくキャラクター管理セクション */}
+        {/* 担当キャラクター管理（ドラッグ＆ドロップ対応） */}
         <section className="bg-white p-6 rounded-xl shadow-sm border space-y-6">
-          <h2 className="text-xl font-semibold">担当キャラクター管理</h2>
+          <div>
+            <h2 className="text-xl font-semibold">担当キャラクター管理</h2>
+            <p className="text-xs text-gray-500 mt-1">※ カードをドラッグ＆ドロップして並び替えることができます。</p>
+          </div>
 
-          {/* 登録済みキャラクターリスト */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {characters.length === 0 ? (
               <p className="text-sm text-gray-500">担当キャラクターはまだ登録されていません。</p>
             ) : (
-              characters.map((char) => (
-                <div key={char.id} className="border p-4 rounded-lg bg-gray-50 space-y-3">
+              characters.map((char, index) => (
+                <div
+                  key={char.id}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(index)}
+                  className="border p-4 rounded-lg bg-gray-50 flex items-center justify-between cursor-move hover:border-indigo-400 transition"
+                >
                   {editingCharId === char.id ? (
-                    /* 編集フォーム */
-                    <div className="space-y-3">
+                    <div className="space-y-3 w-full">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-medium text-gray-700">キャラ名</label>
@@ -302,13 +329,15 @@ export default function EditActorPage() {
                       </div>
                     </div>
                   ) : (
-                    /* 通常表示 */
-                    <div className="flex items-center justify-between">
+                    <>
                       <div className="flex items-center space-x-3">
+                        <span className="text-gray-400 font-bold select-none">☰</span>
                         {char.image_url ? (
-                          <img src={char.image_url} alt={char.name} className="w-12 h-12 rounded-md object-cover" />
+                          <div className="w-12 h-12 rounded-md bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <img src={char.image_url} alt={char.name} className="w-full h-full object-contain" />
+                          </div>
                         ) : (
-                          <div className="w-12 h-12 rounded-md bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">
+                          <div className="w-12 h-12 rounded-md bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold flex-shrink-0">
                             キャラ
                           </div>
                         )}
@@ -331,14 +360,14 @@ export default function EditActorPage() {
                           削除
                         </button>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               ))
             )}
           </div>
 
-          {/* 新規キャラクター追加フォーム */}
+          {/* 新規キャラクター追加 */}
           <div className="border-t pt-6 mt-6">
             <h3 className="text-lg font-medium mb-4">新しいキャラクターを追加</h3>
             <form onSubmit={handleAddCharacter} className="space-y-4">
