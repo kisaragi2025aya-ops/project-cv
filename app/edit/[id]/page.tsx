@@ -5,13 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
-type VoiceActor = {
-  id: string
-  name: string
-  image_url: string | null
-  profile: string | null
-}
-
 type Character = {
   id: string
   voice_actor_id: string
@@ -28,6 +21,7 @@ export default function EditActorPage() {
   const actorId = params.id as string
 
   const [actorName, setActorName] = useState('')
+  const [actorNameKana, setActorNameKana] = useState('') // よみがな用状態
   const [actorImage, setActorImage] = useState('')
   const [actorProfile, setActorProfile] = useState('')
 
@@ -42,7 +36,6 @@ export default function EditActorPage() {
   const [editCharWork, setEditCharWork] = useState('')
   const [editCharImage, setEditCharImage] = useState('')
 
-  // ドラッグ＆ドロップ用の状態管理
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const fetchData = async () => {
@@ -59,6 +52,7 @@ export default function EditActorPage() {
     }
 
     setActorName(actorData.name)
+    setActorNameKana(actorData.name_kana || '')
     setActorImage(actorData.image_url || '')
     setActorProfile(actorData.profile || '')
 
@@ -81,6 +75,7 @@ export default function EditActorPage() {
       .from('voice_actors')
       .update({
         name: actorName,
+        name_kana: actorNameKana,
         image_url: actorImage,
         profile: actorProfile,
       })
@@ -166,7 +161,6 @@ export default function EditActorPage() {
     }
   }
 
-  // ドラッグ＆ドロップのハンドラー
   const handleDragStart = (index: number) => {
     setDraggedIndex(index)
   }
@@ -185,7 +179,6 @@ export default function EditActorPage() {
     setCharacters(updated)
     setDraggedIndex(null)
 
-    // データベースの sort_order を新しい並び順で一括更新
     for (let i = 0; i < updated.length; i++) {
       await supabase
         .from('characters')
@@ -215,6 +208,7 @@ export default function EditActorPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">声優情報</h2>
             <button
+              type="button"
               onClick={handleDeleteActor}
               className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-md text-sm hover:bg-red-100 transition"
             >
@@ -223,15 +217,28 @@ export default function EditActorPage() {
           </div>
 
           <form onSubmit={handleUpdateActor} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">名前 *</label>
-              <input
-                type="text"
-                value={actorName}
-                onChange={(e) => setActorName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none"
-                required
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">名前 *</label>
+                <input
+                  type="text"
+                  value={actorName}
+                  onChange={(e) => setActorName(e.target.value)}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">よみがな（並び替え用・非表示）</label>
+                <input
+                  type="text"
+                  value={actorNameKana}
+                  onChange={(e) => setActorNameKana(e.target.value)}
+                  placeholder="例: みやのまもる"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">※ 五十音順ソートの際にここに入力された文字列が使われます</p>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">画像URL</label>
@@ -260,7 +267,7 @@ export default function EditActorPage() {
           </form>
         </section>
 
-        {/* 担当キャラクター管理（ドラッグ＆ドロップ対応） */}
+        {/* 担当キャラクター管理 */}
         <section className="bg-white p-6 rounded-xl shadow-sm border space-y-6">
           <div>
             <h2 className="text-xl font-semibold">担当キャラクター管理</h2>
@@ -348,12 +355,14 @@ export default function EditActorPage() {
                       </div>
                       <div className="flex space-x-2">
                         <button
+                          type="button"
                           onClick={() => startEditCharacter(char)}
                           className="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 transition"
                         >
                           編集
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDeleteCharacter(char.id)}
                           className="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded hover:bg-red-100 transition"
                         >

@@ -7,6 +7,7 @@ import Link from 'next/link'
 type VoiceActor = {
   id: string
   name: string
+  name_kana: string | null
   image_url: string | null
   profile: string | null
 }
@@ -30,7 +31,6 @@ export default function Home() {
 
   const fetchData = async () => {
     const { data: actors } = await supabase.from('voice_actors').select('*')
-    // sort_order 順にキャラクターを取得
     const { data: chars } = await supabase
       .from('characters')
       .select('*')
@@ -44,8 +44,12 @@ export default function Home() {
     fetchData()
   }, [])
 
+  // name_kana があればそれを優先して五十音順ソート、なければ通常の name を使用
   const sortedActors = [...voiceActors].sort((a, b) => {
-    const comparison = a.name.localeCompare(b.name, 'ja')
+    const keyA = a.name_kana && a.name_kana.trim() !== '' ? a.name_kana : a.name
+    const keyB = b.name_kana && b.name_kana.trim() !== '' ? b.name_kana : b.name
+
+    const comparison = keyA.localeCompare(keyB, 'ja')
     return sortOrder === 'asc' ? comparison : -comparison
   })
 
@@ -55,6 +59,7 @@ export default function Home() {
 
     const matchActor =
       actor.name.toLowerCase().includes(query) ||
+      (actor.name_kana && actor.name_kana.toLowerCase().includes(query)) ||
       (actor.profile && actor.profile.toLowerCase().includes(query))
 
     const matchChar = actorChars.some(
@@ -145,7 +150,7 @@ export default function Home() {
                       </Link>
                     </div>
 
-                    {/* キャラクター一覧（保存された並び順で表示） */}
+                    {/* キャラクター一覧 */}
                     <div className="pl-16 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                       {actorChars.length === 0 ? (
                         <p className="text-xs text-gray-400">担当キャラクターはまだ登録されていません。</p>
