@@ -125,29 +125,39 @@ export default function Home() {
               filteredActors.map((actor) => {
                 const actorChars = characters.filter((c) => c.voice_actor_id === actor.id)
                 return (
-                  <div key={actor.id} className="border-b pb-6 last:border-b-0 last:pb-0">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-4">
-                        {actor.image_url ? (
-                          <div className="w-12 h-12 rounded-full bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-                            <img src={actor.image_url} alt={actor.name} className="w-full h-full object-contain" />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold flex-shrink-0">
-                            {actor.name.charAt(0)}
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="text-lg font-bold">{actor.name}</h3>
-                          <p className="text-sm text-gray-600">{actor.profile || 'プロフィール未設定'}</p>
-                        </div>
-                      </div>
+                  <div key={actor.id} className="relative border-b pb-6 last:border-b-0 last:pb-0">
+                    {/* 右上に配置する編集ボタン（テキストと干渉しない構造） */}
+                    <div className="absolute top-0 right-0">
                       <Link
                         href={`/edit/${actor.id}`}
-                        className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 px-3 py-1.5 rounded-md transition font-medium"
+                        className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 px-3 py-1.5 rounded-md transition font-medium shadow-sm"
                       >
                         編集
                       </Link>
+                    </div>
+
+                    {/* 声優情報ブロック（右側の編集ボタンと重ならないよう右余白 pr-16 を確保） */}
+                    <div className="flex items-start space-x-4 pr-16 mb-4">
+                      {actor.image_url ? (
+                        <div className="w-12 h-12 rounded-full bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                          <img src={actor.image_url} alt={actor.name} className="w-full h-full object-contain" />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold flex-shrink-0">
+                          {actor.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-baseline space-x-2">
+                          <h3 className="text-lg font-bold">{actor.name}</h3>
+                          {actor.name_kana && (
+                            <span className="text-xs text-gray-400">({actor.name_kana})</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
+                          {actor.profile || 'プロフィール未設定'}
+                        </p>
+                      </div>
                     </div>
 
                     {/* キャラクター一覧 */}
