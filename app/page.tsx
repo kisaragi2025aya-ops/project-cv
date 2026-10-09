@@ -27,7 +27,6 @@ export default function Home() {
   const [characters, setCharacters] = useState<Character[]>([])
 
   const [searchQuery, setSearchQuery] = useState('')
-  // ソート順の型を拡張
   const [sortOrder, setSortOrder] = useState<'kana_asc' | 'kana_desc' | 'char_count_desc' | 'char_count_asc'>('kana_asc')
 
   const fetchData = async () => {
@@ -45,7 +44,6 @@ export default function Home() {
     fetchData()
   }, [])
 
-  // 選択されたソート順に応じて並び替え
   const sortedActors = [...voiceActors].sort((a, b) => {
     const countA = characters.filter((c) => c.voice_actor_id === a.id).length
     const countB = characters.filter((c) => c.voice_actor_id === b.id).length
@@ -141,9 +139,12 @@ export default function Home() {
             ) : (
               filteredActors.map((actor) => {
                 const actorChars = characters.filter((c) => c.voice_actor_id === actor.id)
+                const displayedChars = actorChars.slice(0, 6)
+                const remainingCount = actorChars.length - displayedChars.length
+
                 return (
                   <div key={actor.id} className="relative border-b pb-6 last:border-b-0 last:pb-0">
-                    {/* 右上に配置する編集ボタン（テキストと干渉しない構造） */}
+                    {/* 右上に配置する編集ボタン */}
                     <div className="absolute top-0 right-0">
                       <Link
                         href={`/edit/${actor.id}`}
@@ -153,7 +154,7 @@ export default function Home() {
                       </Link>
                     </div>
 
-                    {/* 声優情報ブロック（右側の編集ボタンと重ならないよう右余白 pr-16 を確保） */}
+                    {/* 声優情報ブロック */}
                     <div className="flex items-start space-x-4 pr-16 mb-4">
                       {actor.image_url ? (
                         <div className="w-12 h-12 rounded-full bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -166,7 +167,9 @@ export default function Home() {
                       )}
                       <div className="min-w-0">
                         <div className="flex items-baseline space-x-2">
-                          <h3 className="text-lg font-bold">{actor.name}</h3>
+                          <Link href={`/detail/${actor.id}`} className="text-lg font-bold hover:text-indigo-600 transition">
+                            {actor.name}
+                          </Link>
                           {actor.name_kana && (
                             <span className="text-xs text-gray-400">({actor.name_kana})</span>
                           )}
@@ -177,28 +180,41 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* キャラクター一覧 */}
-                    <div className="pl-16 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {actorChars.length === 0 ? (
-                        <p className="text-xs text-gray-400">担当キャラクターはまだ登録されていません。</p>
-                      ) : (
-                        actorChars.map((char) => (
-                          <div key={char.id} className="bg-gray-50 p-3 rounded-lg border flex items-center space-x-3">
-                            {char.image_url ? (
-                              <div className="w-10 h-10 rounded-md bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-                                <img src={char.image_url} alt={char.name} className="w-full h-full object-contain" />
+                    {/* キャラクター一覧（最大6件まで表示） */}
+                    <div className="pl-16 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {displayedChars.length === 0 ? (
+                          <p className="text-xs text-gray-400">担当キャラクターはまだ登録されていません。</p>
+                        ) : (
+                          displayedChars.map((char) => (
+                            <div key={char.id} className="bg-gray-50 p-3 rounded-lg border flex items-center space-x-3">
+                              {char.image_url ? (
+                                <div className="w-10 h-10 rounded-md bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                                  <img src={char.image_url} alt={char.name} className="w-full h-full object-contain" />
+                                </div>
+                              ) : (
+                                <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold flex-shrink-0">
+                                  キャラ
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold truncate">{char.name}</p>
+                                <p className="text-xs text-gray-500 truncate">{char.work_title}</p>
                               </div>
-                            ) : (
-                              <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold flex-shrink-0">
-                                キャラ
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate">{char.name}</p>
-                              <p className="text-xs text-gray-500 truncate">{char.work_title}</p>
                             </div>
-                          </div>
-                        ))
+                          ))
+                        )}
+                      </div>
+
+                      {remainingCount > 0 && (
+                        <div>
+                          <Link
+                            href={`/detail/${actor.id}`}
+                            className="inline-block text-xs text-indigo-600 hover:underline font-medium"
+                          >
+                            他 {remainingCount} 件のキャラクターを見る →
+                          </Link>
+                        </div>
                       )}
                     </div>
                   </div>
