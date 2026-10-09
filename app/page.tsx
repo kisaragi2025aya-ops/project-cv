@@ -27,7 +27,8 @@ export default function Home() {
   const [characters, setCharacters] = useState<Character[]>([])
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  // ソート順の型を拡張
+  const [sortOrder, setSortOrder] = useState<'kana_asc' | 'kana_desc' | 'char_count_desc' | 'char_count_asc'>('kana_asc')
 
   const fetchData = async () => {
     const { data: actors } = await supabase.from('voice_actors').select('*')
@@ -44,13 +45,27 @@ export default function Home() {
     fetchData()
   }, [])
 
-  // name_kana があればそれを優先して五十音順ソート、なければ通常の name を使用
+  // 選択されたソート順に応じて並び替え
   const sortedActors = [...voiceActors].sort((a, b) => {
-    const keyA = a.name_kana && a.name_kana.trim() !== '' ? a.name_kana : a.name
-    const keyB = b.name_kana && b.name_kana.trim() !== '' ? b.name_kana : b.name
+    const countA = characters.filter((c) => c.voice_actor_id === a.id).length
+    const countB = characters.filter((c) => c.voice_actor_id === b.id).length
 
-    const comparison = keyA.localeCompare(keyB, 'ja')
-    return sortOrder === 'asc' ? comparison : -comparison
+    if (sortOrder === 'char_count_desc') {
+      if (countB !== countA) return countB - countA
+      const keyA = a.name_kana && a.name_kana.trim() !== '' ? a.name_kana : a.name
+      const keyB = b.name_kana && b.name_kana.trim() !== '' ? b.name_kana : b.name
+      return keyA.localeCompare(keyB, 'ja')
+    } else if (sortOrder === 'char_count_asc') {
+      if (countA !== countB) return countA - countB
+      const keyA = a.name_kana && a.name_kana.trim() !== '' ? a.name_kana : a.name
+      const keyB = b.name_kana && b.name_kana.trim() !== '' ? b.name_kana : b.name
+      return keyA.localeCompare(keyB, 'ja')
+    } else {
+      const keyA = a.name_kana && a.name_kana.trim() !== '' ? a.name_kana : a.name
+      const keyB = b.name_kana && b.name_kana.trim() !== '' ? b.name_kana : b.name
+      const comparison = keyA.localeCompare(keyB, 'ja')
+      return sortOrder === 'kana_asc' ? comparison : -comparison
+    }
   })
 
   const filteredActors = sortedActors.filter((actor) => {
@@ -102,11 +117,13 @@ export default function Home() {
             <span className="text-sm text-gray-600">並び順:</span>
             <select
               value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+              onChange={(e) => setSortOrder(e.target.value as any)}
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
             >
-              <option value="asc">五十音順 (昇順)</option>
-              <option value="desc">逆五十音順 (降順)</option>
+              <option value="kana_asc">五十音順 (昇順)</option>
+              <option value="kana_desc">逆五十音順 (降順)</option>
+              <option value="char_count_desc">キャラクター登録数が多い順</option>
+              <option value="char_count_asc">キャラクター登録数が少ない順</option>
             </select>
           </div>
         </div>
